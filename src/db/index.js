@@ -14,6 +14,7 @@ const connectDB = async () => {
       console.log("Connection failed...", error);
       process.exit(1);
    }
+   //this asynchronus function will return promises which needs to be handeled with .then and .catch in main file
 };
 
 export default connectDB;
