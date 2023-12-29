@@ -14,4 +14,8 @@ app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
+//Routes import and declaration
+import userRoute from "./routes/user.routes.js"; //any name can only be assign if export default is used
+app.use("/api/v1/users", userRoute); //.use because we need to call middleware in order to use controllers
+
 export { app };
