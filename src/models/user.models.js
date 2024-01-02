@@ -54,7 +54,7 @@ const userSchema = new Schema(
 userSchema.pre("save", async function (next) {
    if (!this.isModified("password")) return next();
    //whenver there is a change in any one field, the password will going to be encrypt everytime weather there is a change in avatar field. So need to tell this function, only run when there is a change in password field
-   this.password = bcrypt.hash(this.password, 10);
+   this.password = await bcrypt.hash(this.password, 10);
    next();
 });
 
