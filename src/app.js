@@ -12,7 +12,7 @@ app.use(
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
-app.use(cookieParser());
+app.use(cookieParser()); //can access the cookies in reqest and response as well
 
 //Routes import and declaration
 import userRoute from "./routes/user.routes.js"; //any name can only be assign if export default is used

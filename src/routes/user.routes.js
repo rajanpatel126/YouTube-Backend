@@ -1,6 +1,11 @@
 import { Router } from "express";
-import { registerUser } from "../controllers/user.controller.js";
+import {
+   loginUser,
+   logoutUser,
+   registerUser,
+} from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -18,5 +23,10 @@ router.route("/register").post(
    ]), //this is multer middleware which is for file handling of images
    registerUser
 );
+
+router.route("/login").post(loginUser);
+
+//secure routes
+router.route("/logout").post(verifyJWT, logoutUser); //next() will automatically pass on to the logout controller
 
 export default router;
