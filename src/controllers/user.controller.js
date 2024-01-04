@@ -3,6 +3,7 @@ import { ApiErrors } from "../utils/ApiErrors.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId) => {
    try {
@@ -118,7 +119,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
    const { username, email, password } = req.body;
 
-   if (!username || !email) {
+   if (!(username || email)) {
       throw new ApiErrors(400, "Username or Email is required");
    }
 
@@ -195,8 +196,52 @@ const logoutUser = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, {}, "User LoggedOut"));
 });
 
+const refreshAccessToken = asyncHandler(async (req, res) => {
+   const incomingRefreshToken =
+      req.cookies.refreshToken || req.body.refreshToken;
+
+   if (!incomingRefreshToken) {
+      throw new ApiErrors(401, "Unauthorized Request");
+   }
+
+   try {
+      const decodedToken = jwt.verify(
+         incomingRefreshToken,
+         process.env.REFRESH_TOKEN_SECRET
+      );
+
+      const user = await User.findById(decodedToken._id);
+
+      if (!user) {
+         throw new ApiErrors(401, "Invalid Refresh Token");
+      }
+
+      if (incomingRefreshToken !== user?.refreshToken) {
+         throw new ApiErrors(401, "Refresh Token is used or Expired");
+      }
+
+      const { newrefreshToken, accessToken } =
+         await generateAccessAndRefreshToken(user._id);
+
+      const options = {
+         httpOnly: true,
+         secure: true,
+      };
+      return res
+         .status(200)
+         .cookie("refreshToken", newrefreshToken, options)
+         .cookie("accessToken", accessToken, options)
+         .json(
+            new ApiResponse(201, accessToken, newrefreshToken),
+            "Access Token Refreshed Successfully"
+         );
+   } catch (error) {
+      throw new ApiErrors(401, error?.message || "Invalid Refresh Token");
+   }
+});
+
 //User -> this one is a mongoose object so all the methods like findById, findOne will be accessed by User
 //but userdefine method will not be accessed by this object
 //accesstoken, refreshtoken will be with the user that we have accessed through mongoDb which is 'user'
 
-export { registerUser, loginUser, logoutUser };
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
