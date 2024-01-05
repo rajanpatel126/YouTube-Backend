@@ -2,7 +2,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiErrors } from "../utils/ApiErrors.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.models.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
+
+import {
+   uploadToCloudinary,
+   deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId) => {
@@ -266,9 +270,9 @@ const getCorrectUser = asyncHandler(async (req, res) => {
 });
 
 const updatedAccountDetails = asyncHandler(async (req, res) => {
-   const { fullname, email } = req.body;
+   const { fullName, email } = req.body;
 
-   if (!(fullname || email)) {
+   if (!(fullName || email)) {
       throw new ApiErrors(400, "All fields are required");
    }
 
@@ -276,7 +280,7 @@ const updatedAccountDetails = asyncHandler(async (req, res) => {
       req.user?._id,
       {
          $set: {
-            fullname: fullname,
+            fullName: fullName,
             email: email,
          },
       },
@@ -312,9 +316,23 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
       { new: true }
    ).select("-password");
 
+   //deleting the old url of avatar file
+   const oldAvatarUrl = req.file.path;
+   if (!oldAvatarUrl) {
+      throw new ApiErrors(400, "No old Avatar Url found");
+   }
+
+   const deletedfile = await deleteFromCloudinary(oldAvatarUrl);
+
    return res
       .status(200)
-      .json(new ApiResponse(201, user, "Avatar file updated Successfully"));
+      .json(
+         new ApiResponse(
+            201,
+            { user, deletedfile },
+            "Avatar file updated Successfully"
+         )
+      );
 });
 
 const updateUsercoverImage = asyncHandler(async (req, res) => {
@@ -347,6 +365,86 @@ const updateUsercoverImage = asyncHandler(async (req, res) => {
       );
 });
 
+//aggregation pipelines controllers
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+   const { username } = req.params; //any channel name can be access by url
+
+   if (!username?.trim()) {
+      throw new ApiErrors(400, "Username is Missing");
+   }
+
+   const channel = await User.aggregate([
+      //pipeline will return an array
+      {
+         $match: {
+            username: username?.toLowerCase(),
+         },
+      },
+      {
+         //count of number of subscribers
+         $lookup: {
+            from: "subscriptions",
+            // Subscription -> subscriptions, as the mongoDb change the name to lowecase and plural
+            localField: "_id",
+            foreignField: "channel",
+            as: "Subscribers",
+         },
+      },
+      {
+         //count of number of users I have subscribed to
+         $lookup: {
+            from: "subscriptions",
+            localField: "_id",
+            foreignField: "subscriber",
+            as: "Subscribered To",
+         },
+      },
+      {
+         $addFields: {
+            //these two fields will be added to user schema
+            subscribersCount: {
+               $size: "$Subscribers", //$ sign because now Subscribers has become field now
+            },
+            channelSubscribedToCount: {
+               $size: "$Subscribered To",
+            },
+            isSubscribed: {
+               $cond: {
+                  //$in can look into the arrays and objects as well
+                  if: { $in: [req.user?._id, "$Subscribers.subscriber"] },
+                  then: true,
+                  else: false,
+               },
+            },
+         },
+      },
+      {
+         //this is for to pass on selected fields in return
+         $project: {
+            fullName: 1,
+            username: 1,
+            subscribersCount: 1,
+            channelSubscribedToCount: 1,
+            isSubscribed: 1,
+            avatar: 1,
+            email: 1,
+            coverImage: 1,
+         },
+      },
+   ]);
+   console.log(channel);
+
+   if (!channel?.length) {
+      throw new ApiErrors(400, "Channel Does not exist");
+   }
+
+   return res
+      .status(200)
+      .json(
+         new ApiResponse(201, channel[0], "User Channel fetched Successfully")
+      );
+});
+
 //User -> this one is a mongoose object so all the methods like findById, findOne will be accessed by User
 //but userdefine method will not be accessed by this object
 //accesstoken, refreshtoken will be with the user that we have accessed through mongoDb which is 'user'
@@ -361,4 +459,5 @@ export {
    updatedAccountDetails,
    updateUserAvatar,
    updateUsercoverImage,
+   getUserChannelProfile,
 };

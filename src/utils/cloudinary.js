@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs"; //default file system provided by NodeJs
+import { asyncHandler } from "./asyncHandler";
 
 cloudinary.config({
    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -23,6 +24,20 @@ const uploadToCloudinary = async (localFilePath) => {
    }
 };
 
+const deleteFromCloudinary = async (localFilePath) => {
+   try {
+      if (!localFilePath) return null;
+
+      const fileLink = cloudinary.url(localFilePath);
+      const response = await cloudinary.uploader.destroy(fileLink);
+
+      console.log("file deleted from Cloudinary");
+      return response;
+   } catch (error) {
+      fs.unlinkSync(localFilePath);
+   }
+};
+
 // cloudinary.v2.uploader.upload(
 //    "https://upload.wikimedia.org/wikipedia/commons/a/ae/Olympic_flag.jpg",
 //    { public_id: "olympic_flag" },
@@ -31,4 +46,4 @@ const uploadToCloudinary = async (localFilePath) => {
 //    }
 // );
 
-export { uploadToCloudinary };
+export { uploadToCloudinary, deleteFromCloudinary };
