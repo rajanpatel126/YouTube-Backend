@@ -53,6 +53,7 @@ const registerUser = asyncHandler(async (req, res) => {
    console.log("files", req.files); //middleware accessibilty through req.files
 
    const avatarLocalFilePath = req.files?.avatar[0]?.path;
+   //why files? because we are taking more than one file avatar and coverImage
 
    // let avatarLocalFilePath;
    // if (
@@ -240,8 +241,124 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
    }
 });
 
+const currentUserPassword = asyncHandler(async (req, res) => {
+   const { oldPassword, newPassword } = req.body;
+   const user = await User.findById(req.user?._id);
+
+   const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+   if (!isPasswordCorrect) {
+      throw new ApiErrors(400, "Password is Incorrect");
+   }
+
+   user.password = newPassword;
+   await user.save((validateBeforeSave = false));
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Password Change Successfully"));
+});
+
+const getCorrectUser = asyncHandler(async (req, res) => {
+   return res
+      .status(200)
+      .json(200, req.user, "Current user fetched Successfully");
+});
+
+const updatedAccountDetails = asyncHandler(async (req, res) => {
+   const { fullname, email } = req.body;
+
+   if (!(fullname || email)) {
+      throw new ApiErrors(400, "All fields are required");
+   }
+
+   const user = User.findByIdAndUpdate(
+      req.user?._id,
+      {
+         $set: {
+            fullname: fullname,
+            email: email,
+         },
+      },
+      { new: true }
+   ).select("-password");
+
+   return res
+      .status(200)
+      .json(new ApiResponse(201, user, "Account details updated Successfully"));
+   //while changing the file(avatar), try to hit different end point for updating the file so that text data should not be repeted again and again
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+   const avatarLocalPath = req.file?.path;
+
+   if (!avatarLocalPath) {
+      throw new ApiErrors(400, "File is missing");
+   }
+
+   const avatar = uploadToCloudinary(avatarLocalPath);
+
+   if (!avatar?.url) {
+      throw new ApiErrors(400, "Error while uploading Avatar File");
+   }
+
+   const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+         $set: {
+            avatar: avatar.url,
+         },
+      },
+      { new: true }
+   ).select("-password");
+
+   return res
+      .status(200)
+      .json(new ApiResponse(201, user, "Avatar file updated Successfully"));
+});
+
+const updateUsercoverImage = asyncHandler(async (req, res) => {
+   const coverImageLocalPath = req.file?.path;
+
+   if (!coverImageLocalPath) {
+      throw new ApiErrors(400, "File is missing");
+   }
+
+   const coverImage = uploadToCloudinary(coverImageLocalPath);
+
+   if (!coverImage?.url) {
+      throw new ApiErrors(400, "Error while uploading coverImage File");
+   }
+
+   const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+         $set: {
+            coverImage: coverImage.url,
+         },
+      },
+      { new: true }
+   ).select("-password");
+
+   return res
+      .status(200)
+      .json(
+         new ApiResponse(201, user, "cover Image file updated Successfully")
+      );
+});
+
 //User -> this one is a mongoose object so all the methods like findById, findOne will be accessed by User
 //but userdefine method will not be accessed by this object
 //accesstoken, refreshtoken will be with the user that we have accessed through mongoDb which is 'user'
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+export {
+   registerUser,
+   loginUser,
+   logoutUser,
+   refreshAccessToken,
+   getCorrectUser,
+   currentUserPassword,
+   updatedAccountDetails,
+   updateUserAvatar,
+   updateUsercoverImage,
+};

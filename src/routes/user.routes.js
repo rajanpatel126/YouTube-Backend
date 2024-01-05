@@ -12,6 +12,7 @@ const router = Router();
 
 router.route("/register").post(
    upload.fields([
+      // fields because 2 images are as an input
       // not array because it will store all details in one. Here, different arrays depend upon different users
       {
          name: "avatar",
