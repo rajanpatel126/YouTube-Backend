@@ -8,6 +8,7 @@ import {
    deleteFromCloudinary,
 } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshToken = async (userId) => {
    try {
@@ -373,6 +374,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       throw new ApiErrors(400, "Username is Missing");
    }
 
+   //the whole pipeline is send to server without interrution of mongoose, directly used for processing
    const channel = await User.aggregate([
       //pipeline will return an array
       {
@@ -445,6 +447,65 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       );
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+   //we need user id, but because there is no mongoose here
+   // req.user._id is a string, mongoose convert the id to string automatically
+   //so we need to convert the string id to actual mongoose ID
+
+   const user = await User.aggregate([
+      {
+         $match: {
+            _id: new mongoose.Types.ObjectId(req.user._id),
+         },
+      },
+      {
+         $lookup: {
+            from: "videos",
+            localField: "watchHistory",
+            foreignField: "_id",
+            as: "Watch History",
+
+            pipeline: [
+               {
+                  $lookup: {
+                     from: "users",
+                     localField: "owner",
+                     foreignField: "_id",
+                     as: "Owner",
+
+                     pipeline: [
+                        {
+                           $match: {
+                              fullName: 1,
+                              username: 1,
+                              avatar: 1,
+                           },
+                        },
+                     ],
+                  },
+               },
+               {
+                  $addFields: {
+                     owner: {
+                        $first: "$Owner", //the field name which is defined as Owner
+                     },
+                  },
+               },
+            ],
+         },
+      },
+   ]);
+
+   return res.status(
+      200,
+      new ApiResponse(
+         201,
+         user[0].watchHistory,
+         "Watch History fetched Successfully"
+      )
+   );
+});
+
 //User -> this one is a mongoose object so all the methods like findById, findOne will be accessed by User
 //but userdefine method will not be accessed by this object
 //accesstoken, refreshtoken will be with the user that we have accessed through mongoDb which is 'user'
@@ -460,4 +521,5 @@ export {
    updateUserAvatar,
    updateUsercoverImage,
    getUserChannelProfile,
+   getWatchHistory,
 };
