@@ -323,17 +323,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
       throw new ApiErrors(400, "No old Avatar Url found");
    }
 
-   const deletedfile = await deleteFromCloudinary(oldAvatarUrl);
+   await deleteFromCloudinary(oldAvatarUrl);
 
    return res
       .status(200)
-      .json(
-         new ApiResponse(
-            201,
-            { user, deletedfile },
-            "Avatar file updated Successfully"
-         )
-      );
+      .json(new ApiResponse(201, user, "Avatar file updated Successfully"));
 });
 
 const updateUsercoverImage = asyncHandler(async (req, res) => {
