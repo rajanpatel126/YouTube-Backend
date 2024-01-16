@@ -307,7 +307,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
       throw new ApiErrors(400, "Error while uploading Avatar File");
    }
 
-   const user = await User.findByIdAndUpdate(
+   const user = await User.findById(req.user._id).select("avatar");
+
+   const oldAvatarUrl = user.avatar.public_id;
+
+   const updatedUser = await User.findByIdAndUpdate(
       req.user?._id,
       {
          $set: {
@@ -318,16 +322,17 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
    ).select("-password");
 
    //deleting the old url of avatar file
-   const oldAvatarUrl = req.file.path;
-   if (!oldAvatarUrl) {
-      throw new ApiErrors(400, "No old Avatar Url found");
+   if (oldAvatarUrl && updatedUser.avatar.public_id) {
+      await deleteFromCloudinary(oldAvatarUrl);
    }
 
    await deleteFromCloudinary(oldAvatarUrl);
 
    return res
       .status(200)
-      .json(new ApiResponse(201, user, "Avatar file updated Successfully"));
+      .json(
+         new ApiResponse(201, updatedUser, "Avatar file updated Successfully")
+      );
 });
 
 const updateUsercoverImage = asyncHandler(async (req, res) => {
@@ -343,7 +348,11 @@ const updateUsercoverImage = asyncHandler(async (req, res) => {
       throw new ApiErrors(400, "Error while uploading coverImage File");
    }
 
-   const user = await User.findByIdAndUpdate(
+   const user = await User.findById(req.user._id).select("coverImage");
+
+   const coverImageToDelete = user.coverImage.public_id;
+
+   const updatedUser = await User.findByIdAndUpdate(
       req.user?._id,
       {
          $set: {
@@ -353,10 +362,17 @@ const updateUsercoverImage = asyncHandler(async (req, res) => {
       { new: true }
    ).select("-password");
 
+   if (coverImageToDelete && updatedUser.coverImage.public_id) {
+      await deleteFromCloudinary(coverImageToDelete);
+   }
    return res
       .status(200)
       .json(
-         new ApiResponse(201, user, "cover Image file updated Successfully")
+         new ApiResponse(
+            201,
+            updatedUser,
+            "cover Image file updated Successfully"
+         )
       );
 });
 
