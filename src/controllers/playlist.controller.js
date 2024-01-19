@@ -8,8 +8,6 @@ import { Video } from "../models/video.models.js";
 const createPlaylist = asyncHandler(async (req, res) => {
    const { name, description } = req.body;
 
-   //TODO: create playlist
-
    if (!(name || description)) {
       throw new ApiErrors(400, "all fields are required");
    }
@@ -31,7 +29,6 @@ const createPlaylist = asyncHandler(async (req, res) => {
 
 const getUserPlaylists = asyncHandler(async (req, res) => {
    const { userId } = req.params;
-   //TODO: get user playlists
 
    if (!isValidObjectId(userId)) {
       throw new ApiErrors(400, "Invalid userId");
@@ -295,6 +292,7 @@ const deletePlaylist = asyncHandler(async (req, res) => {
 
 const updatePlaylist = asyncHandler(async (req, res) => {
    const { playlistId } = req.params;
+
    const { name, description } = req.body;
 
    if (!isValidObjectId(playlistId)) {
